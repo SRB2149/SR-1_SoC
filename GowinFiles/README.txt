@@ -1,3 +1,2 @@
 These files are for the GOWIN FPGA DESIGNER
-
-Use replace function of notepad++ or other text editor to replace all !!REPLACE!! markers in the .gprj file with your own root file location
+Make sure to place all the files in the same location as the .gprj file otherwise it will not be able to find them
