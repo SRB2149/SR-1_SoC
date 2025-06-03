@@ -1,0 +1,640 @@
+//Wireframe Sphere
+
+//Variables
+VAR1 clkspd 1
+VAR2 lngtIndex 0
+VAR2 errorAccumulated 0
+
+//Start
+LDDI 999
+SMT
+WMT
+SMT
+CPY MM_CLKPRE clkspd
+GDT3 gINI 0 0
+GPU
+GDT3 gSNF 0 0
+GPU
+WMT
+
+//Wait for any button press
+LDDI 0
+SHM (waitLoop)
+LDA IO_BUTTON
+SFM
+JPE *waitLoop
+
+//Load matrices (in order of appearance in this file)
+LDAI 0 (progStart)
+LDDI 48
+ATB
+BTA (matLoadLoop)
+RDA *loadMat+1
+MULI 2
+ADDI z2yMat_A
+RDA *ldaLoadMat+0
+LDA 0 (ldaLoadMat)
+RDA *loadMat+3
+GDT3 gLDC 0 0 (loadMat)
+GPU
+BTA
+ADDI 1
+ATB
+JPE *xferToMatRAM
+JMP *matLoadLoop
+GDT7 gLMV 0 0 0 1 2 23 (xferToMatRAM)
+GPU //Loaded straight into MatRAM so can be overwritten in VRAM
+
+//Load data
+LDAI 0 (startDataLoad)
+LDDI 448
+ATB
+BTA (dataLoadLoop)
+RDA *loadData+1
+MULI 2
+ADDI sphere0_0_X
+RDA *ldaLoadData+0
+LDA 0 (ldaLoadData)
+RDA *loadData+3
+GDT3 gLDC 0 0 (loadData)
+GPU
+BTA
+ADDI 1
+ATB
+JPE *initialTransformation
+JMP *dataLoadLoop
+
+//Post-Load transformation (switching Y and Z coordinates of data)
+GDT7 gMM4 0 0 0 2 2 111 (initialTransformation)
+GPU
+
+//Reset error
+LDAI 0
+RDA errorAccumulated
+
+//Transformation every frame
+GDT7 gMM4 0 8 0 2 2 111 (mainLoop)
+GPU
+
+//Transform to display coords (Orthographic projection)
+GDT7 gMM4 0 16 512 2 2 111
+GPU
+
+//Draw latitudes
+LDAI 1
+LDDI 6 //Only draw central 5 latitudes
+ATB
+BTA (latDrawLoop)
+MULI 64
+ADDI 512
+RDA *drawLat+1
+ADDI 4
+RDA *drawLat+5
+GDT7 gDRL 512 0 516 4 4 14 (drawLat)
+GPU
+BTA
+ADDI 1
+ATB
+JPE *lngtDrawStart
+JMP *latDrawLoop
+
+//Draw longitudes
+LDAI 0 (lngtDrawStart)
+LDDI 15
+ATB
+BTA (lngtDrawLoop)
+MULI 4
+ADDI 512
+RDA *drawLngt+1
+ADDI 64
+RDA *drawLngt+5
+GDT7 gDRL 512 0 576 64 64 5 (drawLngt)
+GPU
+BTA
+ADDI 1
+ATB
+JPE *sendFrame
+JMP *lngtDrawLoop
+
+//Send frame
+GDT3 gSNF 0 0 (sendFrame)
+GPU
+
+//Floating point error accumulation correction
+LDA errorAccumulated
+ADDI 1
+RDA errorAccumulated
+LDDI 180
+WFT
+JPE *startDataLoad
+JMP *mainLoop
+
+//Swap Y and Z coordinates (with earth-like tilt of 23.45 degrees)
+VAR2 z2yMat_A 1.0   // A B C D
+VAR2 z2yMat_B 0.0   // E F G H
+VAR2 z2yMat_C 0.0   // I J K L
+VAR2 z2yMat_D 0.0   // M N O P
+VAR2 z2yMat_E 0.0
+VAR2 z2yMat_F 0.3979486313
+VAR2 z2yMat_G -0.9174076994
+VAR2 z2yMat_H 0.0
+VAR2 z2yMat_I 0.0
+VAR2 z2yMat_J 0.9174076994
+VAR2 z2yMat_K 0.3979486313
+VAR2 z2yMat_L 0.0
+VAR2 z2yMat_M 0.0
+VAR2 z2yMat_N 0.0
+VAR2 z2yMat_O 0.0
+VAR2 z2yMat_P 1.0
+
+//Incremental Transformation Matrix (anticlockwise Z rotation @ 20RPM)
+VAR2 transMat_A 0.999390827
+VAR2 transMat_B 0.0
+VAR2 transMat_C 0.0348994967
+VAR2 transMat_D 0.0
+VAR2 transMat_E 0.0
+VAR2 transMat_F 1.0
+VAR2 transMat_G 0.0
+VAR2 transMat_H 0.0
+VAR2 transMat_I -0.0348994967
+VAR2 transMat_J 0.0
+VAR2 transMat_K 0.999390827
+VAR2 transMat_L 0.0
+VAR2 transMat_M 0.0
+VAR2 transMat_N 0.0
+VAR2 transMat_O 0.0
+VAR2 transMat_P 1.0
+
+//Projection Matrix
+VAR2 projMat_A 25.0
+VAR2 projMat_B 0.0
+VAR2 projMat_C 0.0
+VAR2 projMat_D 63.0
+VAR2 projMat_E 0.0
+VAR2 projMat_F 25.0
+VAR2 projMat_G 0.0
+VAR2 projMat_H 31.0
+VAR2 projMat_I 0.0
+VAR2 projMat_J 0.0
+VAR2 projMat_K 0.0
+VAR2 projMat_L 0.0
+VAR2 projMat_M 0.0
+VAR2 projMat_N 0.0
+VAR2 projMat_O 0.0
+VAR2 projMat_P 0.0
+
+//Sphere data
+VAR2 sphere0_0_X 0.000000
+VAR2 sphere0_0_Y 0.000000
+VAR2 sphere0_0_Z 1.000000
+VAR2 sphere0_0_W 1.0
+VAR2 sphere0_1_X 0.000000
+VAR2 sphere0_1_Y 0.000000
+VAR2 sphere0_1_Z 1.000000
+VAR2 sphere0_1_W 1.0
+VAR2 sphere0_2_X 0.000000
+VAR2 sphere0_2_Y 0.000000
+VAR2 sphere0_2_Z 1.000000
+VAR2 sphere0_2_W 1.0
+VAR2 sphere0_3_X 0.000000
+VAR2 sphere0_3_Y 0.000000
+VAR2 sphere0_3_Z 1.000000
+VAR2 sphere0_3_W 1.0
+VAR2 sphere0_4_X 0.000000
+VAR2 sphere0_4_Y 0.000000
+VAR2 sphere0_4_Z 1.000000
+VAR2 sphere0_4_W 1.0
+VAR2 sphere0_5_X 0.000000
+VAR2 sphere0_5_Y 0.000000
+VAR2 sphere0_5_Z 1.000000
+VAR2 sphere0_5_W 1.0
+VAR2 sphere0_6_X 0.000000
+VAR2 sphere0_6_Y 0.000000
+VAR2 sphere0_6_Z 1.000000
+VAR2 sphere0_6_W 1.0
+VAR2 sphere0_7_X 0.000000
+VAR2 sphere0_7_Y 0.000000
+VAR2 sphere0_7_Z 1.000000
+VAR2 sphere0_7_W 1.0
+VAR2 sphere0_8_X 0.000000
+VAR2 sphere0_8_Y 0.000000
+VAR2 sphere0_8_Z 1.000000
+VAR2 sphere0_8_W 1.0
+VAR2 sphere0_9_X 0.000000
+VAR2 sphere0_9_Y 0.000000
+VAR2 sphere0_9_Z 1.000000
+VAR2 sphere0_9_W 1.0
+VAR2 sphere0_10_X 0.000000
+VAR2 sphere0_10_Y 0.000000
+VAR2 sphere0_10_Z 1.000000
+VAR2 sphere0_10_W 1.0
+VAR2 sphere0_11_X 0.000000
+VAR2 sphere0_11_Y 0.000000
+VAR2 sphere0_11_Z 1.000000
+VAR2 sphere0_11_W 1.0
+VAR2 sphere0_12_X 0.000000
+VAR2 sphere0_12_Y 0.000000
+VAR2 sphere0_12_Z 1.000000
+VAR2 sphere0_12_W 1.0
+VAR2 sphere0_13_X 0.000000
+VAR2 sphere0_13_Y 0.000000
+VAR2 sphere0_13_Z 1.000000
+VAR2 sphere0_13_W 1.0
+VAR2 sphere0_14_X 0.000000
+VAR2 sphere0_14_Y 0.000000
+VAR2 sphere0_14_Z 1.000000
+VAR2 sphere0_14_W 1.0
+VAR2 sphere0_15_X 0.000000
+VAR2 sphere0_15_Y 0.000000
+VAR2 sphere0_15_Z 1.000000
+VAR2 sphere0_15_W 1.0
+
+VAR2 sphere1_0_X 0.500000
+VAR2 sphere1_0_Y 0.000000
+VAR2 sphere1_0_Z 0.866025
+VAR2 sphere1_0_W 1.0
+VAR2 sphere1_1_X 0.456773
+VAR2 sphere1_1_Y 0.203368
+VAR2 sphere1_1_Z 0.866025
+VAR2 sphere1_1_W 1.0
+VAR2 sphere1_2_X 0.334565
+VAR2 sphere1_2_Y 0.371572
+VAR2 sphere1_2_Z 0.866025
+VAR2 sphere1_2_W 1.0
+VAR2 sphere1_3_X 0.154508
+VAR2 sphere1_3_Y 0.475528
+VAR2 sphere1_3_Z 0.866025
+VAR2 sphere1_3_W 1.0
+VAR2 sphere1_4_X -0.052264
+VAR2 sphere1_4_Y 0.497261
+VAR2 sphere1_4_Z 0.866025
+VAR2 sphere1_4_W 1.0
+VAR2 sphere1_5_X -0.250000
+VAR2 sphere1_5_Y 0.433013
+VAR2 sphere1_5_Z 0.866025
+VAR2 sphere1_5_W 1.0
+VAR2 sphere1_6_X -0.404508
+VAR2 sphere1_6_Y 0.293893
+VAR2 sphere1_6_Z 0.866025
+VAR2 sphere1_6_W 1.0
+VAR2 sphere1_7_X -0.489074
+VAR2 sphere1_7_Y 0.103956
+VAR2 sphere1_7_Z 0.866025
+VAR2 sphere1_7_W 1.0
+VAR2 sphere1_8_X -0.489074
+VAR2 sphere1_8_Y -0.103956
+VAR2 sphere1_8_Z 0.866025
+VAR2 sphere1_8_W 1.0
+VAR2 sphere1_9_X -0.404508
+VAR2 sphere1_9_Y -0.293893
+VAR2 sphere1_9_Z 0.866025
+VAR2 sphere1_9_W 1.0
+VAR2 sphere1_10_X -0.250000
+VAR2 sphere1_10_Y -0.433013
+VAR2 sphere1_10_Z 0.866025
+VAR2 sphere1_10_W 1.0
+VAR2 sphere1_11_X -0.052264
+VAR2 sphere1_11_Y -0.497261
+VAR2 sphere1_11_Z 0.866025
+VAR2 sphere1_11_W 1.0
+VAR2 sphere1_12_X 0.154508
+VAR2 sphere1_12_Y -0.475528
+VAR2 sphere1_12_Z 0.866025
+VAR2 sphere1_12_W 1.0
+VAR2 sphere1_13_X 0.334565
+VAR2 sphere1_13_Y -0.371572
+VAR2 sphere1_13_Z 0.866025
+VAR2 sphere1_13_W 1.0
+VAR2 sphere1_14_X 0.456773
+VAR2 sphere1_14_Y -0.203368
+VAR2 sphere1_14_Z 0.866025
+VAR2 sphere1_14_W 1.0
+VAR2 sphere1_15_X 0.500000
+VAR2 sphere1_15_Y 0.000000
+VAR2 sphere1_15_Z 0.866025
+VAR2 sphere1_15_W 1.0
+
+VAR2 sphere2_0_X 0.866025
+VAR2 sphere2_0_Y 0.000000
+VAR2 sphere2_0_Z 0.500000
+VAR2 sphere2_0_W 1.0
+VAR2 sphere2_1_X 0.791154
+VAR2 sphere2_1_Y 0.352244
+VAR2 sphere2_1_Z 0.500000
+VAR2 sphere2_1_W 1.0
+VAR2 sphere2_2_X 0.579484
+VAR2 sphere2_2_Y 0.643582
+VAR2 sphere2_2_Z 0.500000
+VAR2 sphere2_2_W 1.0
+VAR2 sphere2_3_X 0.267617
+VAR2 sphere2_3_Y 0.823639
+VAR2 sphere2_3_Z 0.500000
+VAR2 sphere2_3_W 1.0
+VAR2 sphere2_4_X -0.090524
+VAR2 sphere2_4_Y 0.861281
+VAR2 sphere2_4_Z 0.500000
+VAR2 sphere2_4_W 1.0
+VAR2 sphere2_5_X -0.433013
+VAR2 sphere2_5_Y 0.750000
+VAR2 sphere2_5_Z 0.500000
+VAR2 sphere2_5_W 1.0
+VAR2 sphere2_6_X -0.700629
+VAR2 sphere2_6_Y 0.509037
+VAR2 sphere2_6_Z 0.500000
+VAR2 sphere2_6_W 1.0
+VAR2 sphere2_7_X -0.847101
+VAR2 sphere2_7_Y 0.180057
+VAR2 sphere2_7_Z 0.500000
+VAR2 sphere2_7_W 1.0
+VAR2 sphere2_8_X -0.847101
+VAR2 sphere2_8_Y -0.180057
+VAR2 sphere2_8_Z 0.500000
+VAR2 sphere2_8_W 1.0
+VAR2 sphere2_9_X -0.700629
+VAR2 sphere2_9_Y -0.509037
+VAR2 sphere2_9_Z 0.500000
+VAR2 sphere2_9_W 1.0
+VAR2 sphere2_10_X -0.433013
+VAR2 sphere2_10_Y -0.750000
+VAR2 sphere2_10_Z 0.500000
+VAR2 sphere2_10_W 1.0
+VAR2 sphere2_11_X -0.090524
+VAR2 sphere2_11_Y -0.861281
+VAR2 sphere2_11_Z 0.500000
+VAR2 sphere2_11_W 1.0
+VAR2 sphere2_12_X 0.267617
+VAR2 sphere2_12_Y -0.823639
+VAR2 sphere2_12_Z 0.500000
+VAR2 sphere2_12_W 1.0
+VAR2 sphere2_13_X 0.579484
+VAR2 sphere2_13_Y -0.643582
+VAR2 sphere2_13_Z 0.500000
+VAR2 sphere2_13_W 1.0
+VAR2 sphere2_14_X 0.791154
+VAR2 sphere2_14_Y -0.352244
+VAR2 sphere2_14_Z 0.500000
+VAR2 sphere2_14_W 1.0
+VAR2 sphere2_15_X 0.866025
+VAR2 sphere2_15_Y 0.000000
+VAR2 sphere2_15_Z 0.500000
+VAR2 sphere2_15_W 1.0
+
+VAR2 sphere3_0_X 1.000000
+VAR2 sphere3_0_Y 0.000000
+VAR2 sphere3_0_Z 0.000000
+VAR2 sphere3_0_W 1.0
+VAR2 sphere3_1_X 0.913545
+VAR2 sphere3_1_Y 0.406737
+VAR2 sphere3_1_Z 0.000000
+VAR2 sphere3_1_W 1.0
+VAR2 sphere3_2_X 0.669131
+VAR2 sphere3_2_Y 0.743145
+VAR2 sphere3_2_Z 0.000000
+VAR2 sphere3_2_W 1.0
+VAR2 sphere3_3_X 0.309017
+VAR2 sphere3_3_Y 0.951057
+VAR2 sphere3_3_Z 0.000000
+VAR2 sphere3_3_W 1.0
+VAR2 sphere3_4_X -0.104528
+VAR2 sphere3_4_Y 0.994522
+VAR2 sphere3_4_Z 0.000000
+VAR2 sphere3_4_W 1.0
+VAR2 sphere3_5_X -0.500000
+VAR2 sphere3_5_Y 0.866025
+VAR2 sphere3_5_Z 0.000000
+VAR2 sphere3_5_W 1.0
+VAR2 sphere3_6_X -0.809017
+VAR2 sphere3_6_Y 0.587785
+VAR2 sphere3_6_Z 0.000000
+VAR2 sphere3_6_W 1.0
+VAR2 sphere3_7_X -0.978148
+VAR2 sphere3_7_Y 0.207912
+VAR2 sphere3_7_Z 0.000000
+VAR2 sphere3_7_W 1.0
+VAR2 sphere3_8_X -0.978148
+VAR2 sphere3_8_Y -0.207912
+VAR2 sphere3_8_Z 0.000000
+VAR2 sphere3_8_W 1.0
+VAR2 sphere3_9_X -0.809017
+VAR2 sphere3_9_Y -0.587785
+VAR2 sphere3_9_Z 0.000000
+VAR2 sphere3_9_W 1.0
+VAR2 sphere3_10_X -0.500000
+VAR2 sphere3_10_Y -0.866025
+VAR2 sphere3_10_Z 0.000000
+VAR2 sphere3_10_W 1.0
+VAR2 sphere3_11_X -0.104528
+VAR2 sphere3_11_Y -0.994522
+VAR2 sphere3_11_Z 0.000000
+VAR2 sphere3_11_W 1.0
+VAR2 sphere3_12_X 0.309017
+VAR2 sphere3_12_Y -0.951057
+VAR2 sphere3_12_Z 0.000000
+VAR2 sphere3_12_W 1.0
+VAR2 sphere3_13_X 0.669131
+VAR2 sphere3_13_Y -0.743145
+VAR2 sphere3_13_Z 0.000000
+VAR2 sphere3_13_W 1.0
+VAR2 sphere3_14_X 0.913545
+VAR2 sphere3_14_Y -0.406737
+VAR2 sphere3_14_Z 0.000000
+VAR2 sphere3_14_W 1.0
+VAR2 sphere3_15_X 1.000000
+VAR2 sphere3_15_Y 0.000000
+VAR2 sphere3_15_Z 0.000000
+VAR2 sphere3_15_W 1.0
+
+VAR2 sphere4_0_X 0.866025
+VAR2 sphere4_0_Y 0.000000
+VAR2 sphere4_0_Z -0.500000
+VAR2 sphere4_0_W 1.0
+VAR2 sphere4_1_X 0.791154
+VAR2 sphere4_1_Y 0.352244
+VAR2 sphere4_1_Z -0.500000
+VAR2 sphere4_1_W 1.0
+VAR2 sphere4_2_X 0.579484
+VAR2 sphere4_2_Y 0.643582
+VAR2 sphere4_2_Z -0.500000
+VAR2 sphere4_2_W 1.0
+VAR2 sphere4_3_X 0.267617
+VAR2 sphere4_3_Y 0.823639
+VAR2 sphere4_3_Z -0.500000
+VAR2 sphere4_3_W 1.0
+VAR2 sphere4_4_X -0.090524
+VAR2 sphere4_4_Y 0.861281
+VAR2 sphere4_4_Z -0.500000
+VAR2 sphere4_4_W 1.0
+VAR2 sphere4_5_X -0.433013
+VAR2 sphere4_5_Y 0.750000
+VAR2 sphere4_5_Z -0.500000
+VAR2 sphere4_5_W 1.0
+VAR2 sphere4_6_X -0.700629
+VAR2 sphere4_6_Y 0.509037
+VAR2 sphere4_6_Z -0.500000
+VAR2 sphere4_6_W 1.0
+VAR2 sphere4_7_X -0.847101
+VAR2 sphere4_7_Y 0.180057
+VAR2 sphere4_7_Z -0.500000
+VAR2 sphere4_7_W 1.0
+VAR2 sphere4_8_X -0.847101
+VAR2 sphere4_8_Y -0.180057
+VAR2 sphere4_8_Z -0.500000
+VAR2 sphere4_8_W 1.0
+VAR2 sphere4_9_X -0.700629
+VAR2 sphere4_9_Y -0.509037
+VAR2 sphere4_9_Z -0.500000
+VAR2 sphere4_9_W 1.0
+VAR2 sphere4_10_X -0.433013
+VAR2 sphere4_10_Y -0.750000
+VAR2 sphere4_10_Z -0.500000
+VAR2 sphere4_10_W 1.0
+VAR2 sphere4_11_X -0.090524
+VAR2 sphere4_11_Y -0.861281
+VAR2 sphere4_11_Z -0.500000
+VAR2 sphere4_11_W 1.0
+VAR2 sphere4_12_X 0.267617
+VAR2 sphere4_12_Y -0.823639
+VAR2 sphere4_12_Z -0.500000
+VAR2 sphere4_12_W 1.0
+VAR2 sphere4_13_X 0.579484
+VAR2 sphere4_13_Y -0.643582
+VAR2 sphere4_13_Z -0.500000
+VAR2 sphere4_13_W 1.0
+VAR2 sphere4_14_X 0.791154
+VAR2 sphere4_14_Y -0.352244
+VAR2 sphere4_14_Z -0.500000
+VAR2 sphere4_14_W 1.0
+VAR2 sphere4_15_X 0.866025
+VAR2 sphere4_15_Y 0.000000
+VAR2 sphere4_15_Z -0.500000
+VAR2 sphere4_15_W 1.0
+
+VAR2 sphere5_0_X 0.500000
+VAR2 sphere5_0_Y 0.000000
+VAR2 sphere5_0_Z -0.866025
+VAR2 sphere5_0_W 1.0
+VAR2 sphere5_1_X 0.456773
+VAR2 sphere5_1_Y 0.203368
+VAR2 sphere5_1_Z -0.866025
+VAR2 sphere5_1_W 1.0
+VAR2 sphere5_2_X 0.334565
+VAR2 sphere5_2_Y 0.371572
+VAR2 sphere5_2_Z -0.866025
+VAR2 sphere5_2_W 1.0
+VAR2 sphere5_3_X 0.154508
+VAR2 sphere5_3_Y 0.475528
+VAR2 sphere5_3_Z -0.866025
+VAR2 sphere5_3_W 1.0
+VAR2 sphere5_4_X -0.052264
+VAR2 sphere5_4_Y 0.497261
+VAR2 sphere5_4_Z -0.866025
+VAR2 sphere5_4_W 1.0
+VAR2 sphere5_5_X -0.250000
+VAR2 sphere5_5_Y 0.433013
+VAR2 sphere5_5_Z -0.866025
+VAR2 sphere5_5_W 1.0
+VAR2 sphere5_6_X -0.404508
+VAR2 sphere5_6_Y 0.293893
+VAR2 sphere5_6_Z -0.866025
+VAR2 sphere5_6_W 1.0
+VAR2 sphere5_7_X -0.489074
+VAR2 sphere5_7_Y 0.103956
+VAR2 sphere5_7_Z -0.866025
+VAR2 sphere5_7_W 1.0
+VAR2 sphere5_8_X -0.489074
+VAR2 sphere5_8_Y -0.103956
+VAR2 sphere5_8_Z -0.866025
+VAR2 sphere5_8_W 1.0
+VAR2 sphere5_9_X -0.404508
+VAR2 sphere5_9_Y -0.293893
+VAR2 sphere5_9_Z -0.866025
+VAR2 sphere5_9_W 1.0
+VAR2 sphere5_10_X -0.250000
+VAR2 sphere5_10_Y -0.433013
+VAR2 sphere5_10_Z -0.866025
+VAR2 sphere5_10_W 1.0
+VAR2 sphere5_11_X -0.052264
+VAR2 sphere5_11_Y -0.497261
+VAR2 sphere5_11_Z -0.866025
+VAR2 sphere5_11_W 1.0
+VAR2 sphere5_12_X 0.154508
+VAR2 sphere5_12_Y -0.475528
+VAR2 sphere5_12_Z -0.866025
+VAR2 sphere5_12_W 1.0
+VAR2 sphere5_13_X 0.334565
+VAR2 sphere5_13_Y -0.371572
+VAR2 sphere5_13_Z -0.866025
+VAR2 sphere5_13_W 1.0
+VAR2 sphere5_14_X 0.456773
+VAR2 sphere5_14_Y -0.203368
+VAR2 sphere5_14_Z -0.866025
+VAR2 sphere5_14_W 1.0
+VAR2 sphere5_15_X 0.500000
+VAR2 sphere5_15_Y 0.000000
+VAR2 sphere5_15_Z -0.866025
+VAR2 sphere5_15_W 1.0
+
+VAR2 sphere6_0_X 0.000000
+VAR2 sphere6_0_Y 0.000000
+VAR2 sphere6_0_Z -1.000000
+VAR2 sphere6_0_W 1.0
+VAR2 sphere6_1_X 0.000000
+VAR2 sphere6_1_Y 0.000000
+VAR2 sphere6_1_Z -1.000000
+VAR2 sphere6_1_W 1.0
+VAR2 sphere6_2_X 0.000000
+VAR2 sphere6_2_Y 0.000000
+VAR2 sphere6_2_Z -1.000000
+VAR2 sphere6_2_W 1.0
+VAR2 sphere6_3_X 0.000000
+VAR2 sphere6_3_Y 0.000000
+VAR2 sphere6_3_Z -1.000000
+VAR2 sphere6_3_W 1.0
+VAR2 sphere6_4_X 0.000000
+VAR2 sphere6_4_Y 0.000000
+VAR2 sphere6_4_Z -1.000000
+VAR2 sphere6_4_W 1.0
+VAR2 sphere6_5_X 0.000000
+VAR2 sphere6_5_Y 0.000000
+VAR2 sphere6_5_Z -1.000000
+VAR2 sphere6_5_W 1.0
+VAR2 sphere6_6_X 0.000000
+VAR2 sphere6_6_Y 0.000000
+VAR2 sphere6_6_Z -1.000000
+VAR2 sphere6_6_W 1.0
+VAR2 sphere6_7_X 0.000000
+VAR2 sphere6_7_Y 0.000000
+VAR2 sphere6_7_Z -1.000000
+VAR2 sphere6_7_W 1.0
+VAR2 sphere6_8_X 0.000000
+VAR2 sphere6_8_Y 0.000000
+VAR2 sphere6_8_Z -1.000000
+VAR2 sphere6_8_W 1.0
+VAR2 sphere6_9_X 0.000000
+VAR2 sphere6_9_Y 0.000000
+VAR2 sphere6_9_Z -1.000000
+VAR2 sphere6_9_W 1.0
+VAR2 sphere6_10_X 0.000000
+VAR2 sphere6_10_Y 0.000000
+VAR2 sphere6_10_Z -1.000000
+VAR2 sphere6_10_W 1.0
+VAR2 sphere6_11_X 0.000000
+VAR2 sphere6_11_Y 0.000000
+VAR2 sphere6_11_Z -1.000000
+VAR2 sphere6_11_W 1.0
+VAR2 sphere6_12_X 0.000000
+VAR2 sphere6_12_Y 0.000000
+VAR2 sphere6_12_Z -1.000000
+VAR2 sphere6_12_W 1.0
+VAR2 sphere6_13_X 0.000000
+VAR2 sphere6_13_Y 0.000000
+VAR2 sphere6_13_Z -1.000000
+VAR2 sphere6_13_W 1.0
+VAR2 sphere6_14_X 0.000000
+VAR2 sphere6_14_Y 0.000000
+VAR2 sphere6_14_Z -1.000000
+VAR2 sphere6_14_W 1.0
+VAR2 sphere6_15_X 0.000000
+VAR2 sphere6_15_Y 0.000000
+VAR2 sphere6_15_Z -1.000000
+VAR2 sphere6_15_W 1.0
