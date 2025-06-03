@@ -2,7 +2,7 @@
 <img src="Images/Title.png" alt="SR-1 Logo">  
 This is a 16bit CPU and GPU that I have written in SystemVerilog.
 
-[Watch the Tetrahedron Demo on YouTube](https://youtu.be/6NJTSfFw-bk)
+[Watch the demonstration videos on YouTube](https://www.youtube.com/playlist?list=PLyZxDW8-IV3POaEG_RHy7BoB--Str1Qei)
 
 ## License
 This project is licensed under the **Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)**.  
